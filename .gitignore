@@ -19,3 +19,5 @@ Thumbs.db
 PyQt files (if auto-generated)
 
 *.ui
+
+mixer_log.log

@@ -222,11 +222,12 @@ class MainWindow(QMainWindow):
 
         # Region Size Slider: FIX for TypeError (sliderReleased emits no arguments)
         current_slider = self.region_size_slider
-        self.region_size_slider.sliderReleased.connect(
+        self.region_size_slider.valueChanged.connect(
             (lambda slider_obj:
              lambda: self.app_logic.handle_region_size_change(slider_obj.value())
              )(current_slider)
         )
+        self.region_size_slider.sliderReleased.connect(self.app_logic.full_update_cycle)
 
         # Connect thread control
         self.cancel_button.clicked.connect(self.app_logic.cancel_mixing)
