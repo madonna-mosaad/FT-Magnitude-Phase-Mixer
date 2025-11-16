@@ -1,0 +1,21 @@
+Python specific files
+
+*.pyc
+pycache/
+.Python
+venv/
+env/
+
+Logs
+
+logs/*.log
+our_log.log
+
+Operating System Files
+
+.DS_Store
+Thumbs.db
+
+PyQt files (if auto-generated)
+
+*.ui

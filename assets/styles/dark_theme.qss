@@ -1,0 +1,123 @@
+QWidget {
+    color: #E0E0E0;
+    background-color: #2D2D2D;
+    font-size: 10pt;
+}
+
+QMainWindow, QGroupBox {
+    background-color: #222222;
+    border: 1px solid #444444;
+    border-radius: 5px;
+    padding: 10px;
+    margin-top: 5px; /* Space for the title */
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top center;
+    padding: 0 5px;
+    color: #FFFFFF;
+    font-weight: bold;
+}
+
+/* --- Labels for Images (Viewports) --- */
+QLabel {
+    border: 1px solid #555555;
+    border-radius: 4px;
+    background-color: #1A1A1A;
+    padding: 5px;
+}
+
+/* Status and Quit Buttons */
+QPushButton {
+    background-color: #3A3A3A;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 6px 12px;
+}
+
+QPushButton:hover {
+    background-color: #4A4A4A;
+}
+
+QPushButton:pressed {
+    /* Updated Accent Color */
+    background-color: #44A048;
+    border-color: #44A048;
+}
+
+.quit_button {
+    background-color: #C0392B; /* Red color for Quit */
+    font-weight: bold;
+}
+
+.quit_button:hover {
+    background-color: #E74C3C;
+}
+
+
+/* --- Sliders --- */
+QSlider::groove:horizontal {
+    border: 1px solid #444444;
+    height: 8px;
+    background: #333333;
+    margin: 2px 0;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    /* Updated Accent Color */
+    background: #44A048;
+    border: 1px solid #44A048;
+    width: 16px;
+    margin: -4px 0; /* center the handle */
+    border-radius: 8px;
+}
+
+
+/* --- Segmented Control Styling (Custom) --- */
+
+QToolButton[class="segmented_control_button"] {
+    background-color: #333333;
+    border: 1px solid #444444;
+    padding: 8px;
+    margin: 0;
+    border-radius: 0;
+}
+
+/* Remove side borders for middle buttons */
+QToolButton[class="segmented_control_button"]:!QToolButton[is_first="true"]:!QToolButton[is_last="true"] {
+    border-left: none;
+    border-right: none;
+}
+
+/* Apply rounded corners to first and last buttons */
+QToolButton[is_first="true"] {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-right: 1px solid #444444; /* Ensure separation */
+}
+
+QToolButton[is_last="true"] {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-left: none;
+}
+
+/* Checked/Selected State */
+QToolButton[class="segmented_control_button"]:checked {
+    /* Updated Accent Color */
+    background-color: #44A048;
+    color: #FFFFFF;
+    border-color: #44A048;
+    font-weight: bold;
+}
+
+QToolButton[class="segmented_control_button"]:hover {
+    background-color: #444444;
+}
+
+QToolButton[class="segmented_control_button"]:checked:hover {
+    /* Updated Lighter Accent for Hover */
+    background-color: #66BB6A;
+}
