@@ -340,7 +340,7 @@ class ApplicationLogic(QObject):
         overlay = ft_image_copy.copy()
         alpha = 0.4
         # FIX: Changed selector color from Yellow (255, 255, 0) to Red (0, 0, 255) for sharp contrast
-        color = (0, 0, 255) # BGR color for Red
+        color = (0, 0, 255)  # BGR color for Red
 
         # Draw a solid rectangle on the overlay
         cv2.rectangle(overlay, (x, y), (x + w, y + h), color, -1)
