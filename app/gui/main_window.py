@@ -114,11 +114,13 @@ class MainWindow(QMainWindow):
             reset_btn.setText("Reset B/C")
             reset_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             self.reset_buttons.append(reset_btn)
+            reset_btn.setObjectName("reset_button")
 
             clear_btn = QToolButton()
             clear_btn.setText("Clear Image")
             clear_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             self.clear_buttons.append(clear_btn)
+            clear_btn.setObjectName("clear_button")
 
             action_v_layout.addWidget(reset_btn)
             action_v_layout.addWidget(clear_btn)

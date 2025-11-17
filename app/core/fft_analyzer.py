@@ -18,7 +18,8 @@ class FFTAnalyzer:
     def compute_ft_components(self, images, component_selections):
         """
         Computes and stores the visual FT component for all images.
-        Returns a list of the 4 FT component images (normalized uint8 or color).
+        Returns a list of the 4 FT component images (normalized uint8),
+        adapted to a dark calm theme.
         """
         min_h = self.image_processor.min_height
         min_w = self.image_processor.min_width
@@ -30,47 +31,46 @@ class FFTAnalyzer:
 
             ft_image = np.fft.fft2(image)
             ft_image_shifted = np.fft.fftshift(ft_image)
-
             selected = component_selections[i]
 
+            # ------------------ COLOR MAP SELECTION ------------------
             if selected == "FT Magnitude":
                 magnitude = np.abs(ft_image_shifted)
-                # Apply log scaling and normalize for display
                 magnitude_log = np.log1p(magnitude)
                 ft_visual = cv2.normalize(magnitude_log, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
-                # Magnitude uses TURBO (high contrast)
-                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_TURBO)
+                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_INFERNO)  # warm, muted, calm
 
             elif selected == "FT Phase":
                 phase = np.angle(ft_image_shifted)
-                # Scale phase to [0, 255]
                 phase_scaled = (phase + np.pi) / (2 * np.pi) * 255
                 ft_visual = phase_scaled.astype(np.uint8)
-
-                # Phase uses JET
-                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_JET)
-
+                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_MAGMA)  # dark calm purple tones
 
             elif selected == "FT Real":
                 real = np.real(ft_image_shifted)
                 real_log = np.log1p(np.abs(real))
                 ft_visual = cv2.normalize(real_log, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
-                # THEME CHANGE: Real uses RAINBOW for better differentiation
-                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_RAINBOW)
-
+                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_PLASMA)  # soft gradient, readable
 
             elif selected == "FT Imaginary":
                 imaginary = np.imag(ft_image_shifted)
                 imaginary_log = np.log1p(np.abs(imaginary))
                 ft_visual = cv2.normalize(imaginary_log, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
-                # THEME CHANGE: Imaginary uses VIRIDIS for distinct color mapping
-                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_VIRIDIS)
+                ft_visual = cv2.applyColorMap(ft_visual, cv2.COLORMAP_CIVIDIS)  # calm cyan-yellowish
 
             else:
                 ft_visual = None
+
+            # ------------------ DARKEN AND TONE MAP TO MATCH UI ------------------
+            if ft_visual is not None:
+                # Reduce intensity for dark theme
+                ft_visual = (ft_visual * 0.55).astype(np.uint8)
+
+                # Optional gamma correction for soft contrast
+                gamma = 1.2
+                inv_gamma = 1.0 / gamma
+                table = np.array([((j / 255.0) ** inv_gamma) * 255 for j in np.arange(256)]).astype("uint8")
+                ft_visual = cv2.LUT(ft_visual, table)
 
             self.ft_images[i] = ft_visual
 
