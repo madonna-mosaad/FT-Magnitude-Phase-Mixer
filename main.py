@@ -36,7 +36,6 @@ class ApplicationLogic(QObject):
     def set_ui(self, ui_instance):
         """Initializes UI references and default state."""
         self.ui = ui_instance
-        # EDITED: Removed output selector from call as it's no longer tracked in Mixer
         self.mixer.set_output_labels(self.ui.output_image_1, self.ui.output_image_2)
 
         # Initial component setup based on default SegmentedControl selection
@@ -46,7 +45,7 @@ class ApplicationLogic(QObject):
         if hasattr(self.ui.region_mode_selector, 'get_selection'):
             self.mixer.set_region_mode(self.ui.region_mode_selector.get_selection())
 
-        # --- UI ENHANCEMENT: Connect the new 'Save Mixed Output' button ---
+        # Connect the 'Save Mixed Output' button
         self.ui.cancel_button.clicked.connect(self.save_mixed_image)
 
     @pyqtSlot()
@@ -83,6 +82,8 @@ class ApplicationLogic(QObject):
 
         if not can_mix:
             self.ui.status_label.setText("Set non-zero weights for loaded images.")
+            # Clear output if no mixing is possible (e.g., all weights are zero)
+            self.clear_mixed_output()
             return
 
         self.ui.status_label.setText("Mixing...")
@@ -119,7 +120,6 @@ class ApplicationLogic(QObject):
         qt_image = self.image_processor.convert_cv_to_qt(mixed_image)
         if qt_image:
             pixmap = QPixmap.fromImage(qt_image)
-            # EDITED: Use SegmentedControl.get_selection() instead of QComboBox.currentText()
             target_label = self.ui.output_image_1 if self.ui.output_selector.get_selection() == "Output 1" else self.ui.output_image_2
             target_label.setPixmap(pixmap.scaled(target_label.size(), Qt.KeepAspectRatio))
             self.ui.status_label.setText("Mixing Complete")
@@ -133,45 +133,52 @@ class ApplicationLogic(QObject):
         # We now expect to land here instead of crashing the process
         self.ui.status_label.setText(f"Error: {message}")
         print(f"THREAD EXCEPTION CAUGHT: {message}")
-        # Clear output to indicate failure
-        self.ui.output_image_1.clear()
-        self.ui.output_image_2.clear()
+        self.clear_mixed_output()  # Clear output on error
 
     @pyqtSlot()
     def on_mixing_canceled(self):
         self.ui.status_label.setText("Mixing Canceled")
         self.ui.progress_bar.setValue(0)
+        self.clear_mixed_output()  # Clear output on cancel
 
-    # --- UI ENHANCEMENT: New Method to Save the Output Image ---
+    def clear_mixed_output(self):
+        """Clears both output image labels."""
+        self.ui.output_image_1.clear()
+        self.ui.output_image_2.clear()
+        self.ui.output_image_1.setText("Mixed Image 1")
+        self.ui.output_image_2.setText("Mixed Image 2")
+
+    # --- Save Mixed Output ---
     @pyqtSlot()
     def save_mixed_image(self):
         """Saves the image from the currently selected output viewport."""
+
+        # Determine which output label to save from
+        selected_output = self.ui.output_selector.get_selection()
+        target_label = self.ui.output_image_1 if selected_output == "Output 1" else self.ui.output_image_2
+
+        pixmap = target_label.pixmap()
+
+        # Check if the output widget is empty (contains no image)
+        if pixmap is None or pixmap.isNull():
+            self.ui.status_label.setText("Error: The selected output is empty. Nothing to save.")
+            return
+
         options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getSaveFileName(self.ui, "Save Mixed Image", "",
+
+        default_filename = "mixed_image.png"
+        initial_path = os.path.join("/", default_filename)
+
+        file_name, _ = QFileDialog.getSaveFileName(self.ui, "Save Mixed Image", initial_path,
                                                    "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg);;All Files (*)", options=options)
 
         if file_name:
-            # Determine which output label to save from using SegmentedControl.get_selection()
-            selected_output = self.ui.output_selector.get_selection()
-            if selected_output == "Output 1":
-                target_label = self.ui.output_image_1
-            else:  # Must be "Output 2"
-                target_label = self.ui.output_image_2
-
-            # Check if the label has a pixmap (i.e., an image is mixed)
-            pixmap = target_label.pixmap()
-            if pixmap and not pixmap.isNull():
-                # Save the pixmap content. QPixmap.save() handles the file format based on extension.
-                if pixmap.save(file_name):
-                    self.ui.status_label.setText(f"Output saved to: {os.path.basename(file_name)}")
-                else:
-                    self.ui.status_label.setText("Error: Could not save the image file.")
+            if pixmap.save(file_name):
+                self.ui.status_label.setText(f"Output saved to: {os.path.basename(file_name)}")
             else:
-                self.ui.status_label.setText("Error: No mixed image available to save.")
+                self.ui.status_label.setText("Error: Could not save the image file.")
 
     def cancel_mixing(self):
-        # This function is now primarily used for implicitly canceling a running thread
-        # when a new mix operation starts via full_update_cycle.
         if self.worker_thread and self.worker_thread.is_alive():
             self.worker_thread.cancel()
         else:
@@ -182,7 +189,6 @@ class ApplicationLogic(QObject):
     def load_image(self, index):
         """Loads an image, converts to grayscale, and updates state."""
         options = QFileDialog.Options()
-        # Search path is relative to the execution directory
         search_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'images')
         file_name, _ = QFileDialog.getOpenFileName(self.ui, "Open Grayscale Image", search_path,
                                                    "Images (*.png *.jpg *.jpeg *.bmp);;All Files (*)", options=options)
@@ -193,27 +199,68 @@ class ApplicationLogic(QObject):
                 self.raw_images[index] = gray_image
 
                 self.reset_brightness_contrast(index, trigger_update=False)
-                # Update B/C feedback label immediately
-                self.ui.adjustment_status_labels[index].setText("B: 0 | C: 1.00")
+
+                # --- FIX: Ensure FT component viewer shows up immediately ---
+                # We need to explicitly set the combo box selection after loading
+                # to trigger the visualization update if it's currently at "Select Component".
+                combo = self.ui.component_combos[index]
+                if combo.currentIndex() == 0 and combo.count() > 1:
+                    combo.setCurrentIndex(1)  # Select the first available component (e.g., Magnitude)
+                # Now, call the full update cycle
                 self.full_update_cycle()
             else:
                 self.ui.status_label.setText("Error: Could not read the image file.")
+
+    @pyqtSlot(int)
+    def clear_image(self, index):
+        """
+        Clears the image and its data from a specific viewport.
+        Handles checking if all images are cleared afterwards.
+        """
+        # Clear data for the specific index
+        self.raw_images[index] = None
+        self.current_weights[index] = 0.0
+        self.image_processor.reset_adjustments(index)
+
+        # Reset UI controls
+        self.ui.weight_sliders[index].setValue(0)
+        combo = self.ui.component_combos[index]
+        if combo.count() > 0:
+            combo.setCurrentIndex(0)  # Select "Select Component"
+
+        # Manually clear viewport display and FT component view
+        self.ui.input_labels[index].clear()
+        self.ui.input_labels[index].setText("Click to Load Image")
+        self.ui.ft_labels[index].clear()
+        self.ui.ft_labels[index].setText("FT Component View")
+
+        # Reset B/C text back to default
+        self.ui.reset_buttons[index].setText("Reset")
+
+        # Clear output if all images are now cleared
+        if not any(img is not None for img in self.raw_images):
+            self.clear_mixed_output()
+            self.ui.status_label.setText("All viewports cleared.")
+            # Crucial: Reset min dimensions if no images are loaded
+            self.image_processor._min_width = None
+            self.image_processor._min_height = None
+            self.update_ft_displays([None] * 4)  # Clear remaining FT displays
+            return
+
+        self.full_update_cycle()
+        self.ui.status_label.setText(f"Viewport {index + 1} cleared.")
 
     @pyqtSlot(int, int)
     def update_weight(self, value, index):
         """Updates weight and triggers mixing."""
         self.current_weights[index] = value / 100.0
 
-        # Now, simply update the display cycle, which contains the logic to start mixing
         self.full_update_cycle()
 
     @pyqtSlot(int, bool)
     def reset_brightness_contrast(self, index, trigger_update=True):
         """Resets B/C for one image."""
         self.image_processor.reset_adjustments(index)
-
-        # Update feedback label
-        self.ui.adjustment_status_labels[index].setText("B: 0 | C: 1.00")
 
         if trigger_update:
             self.full_update_cycle(trigger_mixing=False)
@@ -236,9 +283,6 @@ class ApplicationLogic(QObject):
 
             self.image_processor.set_brightness(index, new_b)
             self.image_processor.set_contrast(index, new_c)
-
-            # Update feedback label
-            self.ui.adjustment_status_labels[index].setText(f"B: {new_b:.0f} | C: {new_c:.2f}")
 
             self.last_mouse_y = event.y()
             self.last_mouse_x = event.x()
@@ -292,6 +336,8 @@ class ApplicationLogic(QObject):
         if not any(img is not None for img in self.raw_images):
             # No images loaded. Only clear FT views, do not proceed to math.
             self.update_ft_displays([None] * 4)
+            self.image_processor._min_width = None
+            self.image_processor._min_height = None
             return
 
         # 1. Process Images (B/C, Resize, Unify)
@@ -300,10 +346,7 @@ class ApplicationLogic(QObject):
         # --- FIX: Ensure the selector region is centered after image dimensions are set ---
         if self.image_processor.min_width is not None and self.ui is not None:
             region_x, region_y, _, _ = self.fft_analyzer.selector_region
-            # The initial x/y in FFTAnalyzer is 0. If it hasn't changed from 0, it means
-            # it hasn't been centered yet, even though the size is correct (200x200).
             if region_x == 0 and region_y == 0:
-                # Get the default size from the slider in the UI and force centering
                 default_size = self.ui.region_size_slider.value()
                 self.fft_analyzer.set_region_size(default_size)
         # ---------------------------------------------------------------------------------
@@ -326,6 +369,12 @@ class ApplicationLogic(QObject):
         """Updates the input image labels."""
         for i, image in enumerate(processed_images):
             label = self.ui.input_labels[i]
+
+            # Update B/C value on the reset button
+            b = self.image_processor._brightness[i]
+            c = self.image_processor._contrast[i]
+            self.ui.reset_buttons[i].setText(f"Reset (B:{b:.0f} | C:{c:.2f})")
+
             if image is not None:
                 qt_image = self.image_processor.convert_cv_to_qt(image)
                 if qt_image:
@@ -334,6 +383,7 @@ class ApplicationLogic(QObject):
             else:
                 label.clear()
                 label.setText("Click to Load Image")
+                self.ui.reset_buttons[i].setText("Reset")
 
     def update_ft_displays(self, ft_visuals):
         """Updates the FT component labels, including the region selector overlay."""
@@ -358,15 +408,12 @@ class ApplicationLogic(QObject):
         ft_image_copy = ft_image.copy()
         x, y, w, h = self.fft_analyzer.selector_region
 
-        if w == 0 or h == 0 or ft_image.ndim != 3:  # Avoid errors on malformed images
+        if w == 0 or h == 0 or ft_image.ndim != 3:
             return ft_image
-
-        # Since FT Magnitude is colored (3-channel) and others are converted to BGR, we are safe.
 
         # Create overlay
         overlay = ft_image_copy.copy()
         alpha = 0.4
-        # Changed selector color from Yellow (255, 255, 0) to Red (0, 0, 255) for sharp contrast
         color = (0, 0, 255)  # BGR color for Red
 
         # Draw a solid rectangle on the overlay

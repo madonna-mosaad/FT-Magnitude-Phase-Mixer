@@ -12,6 +12,12 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1400, 800)
         self.setMinimumSize(1200, 700)
 
+        # Define fixed sizes for the two main components within a viewport
+        # These sizes maintain the ratio (e.g., 300:200) and ensure stability.
+        self.INPUT_LABEL_WIDTH = 300
+        self.FT_LABEL_WIDTH = 200
+        self.VIEWPORT_HEIGHT = 280  # Fixed height for stability
+
         # Main widget and layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -39,10 +45,9 @@ class MainWindow(QMainWindow):
         self.input_labels = []
         self.ft_labels = []
         self.weight_sliders = []
-        # NOTE: Keeping QComboBox for component selection as options are dynamic
         self.component_combos = []
         self.reset_buttons = []
-        self.adjustment_status_labels = []
+        self.clear_buttons = []
 
         for i in range(4):
             # Viewport Group
@@ -55,14 +60,18 @@ class MainWindow(QMainWindow):
             input_label.setProperty("class", "input_image_label")
             input_label.setScaledContents(True)
             input_label.setAlignment(Qt.AlignCenter)
-            input_label.setMinimumSize(250, 250)
+
+            # --- FIXED SIZE IMPLEMENTATION ---
+            input_label.setFixedSize(self.INPUT_LABEL_WIDTH, self.VIEWPORT_HEIGHT)
             self.input_labels.append(input_label)
 
             ft_label = QLabel("FT Component View")
             ft_label.setProperty("class", "ft_component_label")
             ft_label.setScaledContents(True)
             ft_label.setAlignment(Qt.AlignCenter)
-            ft_label.setMinimumSize(180, 250)
+
+            # --- FIXED SIZE IMPLEMENTATION ---
+            ft_label.setFixedSize(self.FT_LABEL_WIDTH, self.VIEWPORT_HEIGHT)
             self.ft_labels.append(ft_label)
 
             image_h_layout.addWidget(input_label, 3)  # Give input more space
@@ -70,11 +79,6 @@ class MainWindow(QMainWindow):
 
             # Controls beneath the images
             control_h_layout = QHBoxLayout()
-
-            # B/C Feedback Label
-            adj_label = QLabel("B: 0 | C: 1.00")
-            adj_label.setStyleSheet("font-size: 8pt; color: #00FFFF;")
-            self.adjustment_status_labels.append(adj_label)
 
             weight_slider = QSlider(Qt.Horizontal)
             weight_slider.setRange(0, 100)
@@ -87,14 +91,18 @@ class MainWindow(QMainWindow):
             self.component_combos.append(combo)
 
             reset_btn = QToolButton()
-            reset_btn.setText("Reset")
+            reset_btn.setText("Reset")  # B/C reset is now indicated on this button
             self.reset_buttons.append(reset_btn)
 
-            control_h_layout.addWidget(adj_label)  # New feedback label
+            clear_btn = QToolButton()
+            clear_btn.setText("Clear")
+            self.clear_buttons.append(clear_btn)
+
             control_h_layout.addWidget(QLabel("Weight:"))
             control_h_layout.addWidget(weight_slider)
             control_h_layout.addWidget(combo)
             control_h_layout.addWidget(reset_btn)
+            control_h_layout.addWidget(clear_btn)  # New Clear button
 
             viewport_layout.addLayout(image_h_layout)
             viewport_layout.addLayout(control_h_layout)
@@ -104,7 +112,8 @@ class MainWindow(QMainWindow):
             col = i % 2
             self.image_grid.addWidget(viewport_group, row, col)
 
-        self.main_layout.addWidget(self.image_grid_widget, 3)  # Give the image grid 3/4 of the space
+        # Since the individual labels are fixed, we can let the grid widget take up space naturally
+        self.main_layout.addWidget(self.image_grid_widget, 3)
 
     def setup_control_panel(self):
         # Dedicated right-side control panel
@@ -113,7 +122,7 @@ class MainWindow(QMainWindow):
         self.control_panel_layout.setAlignment(Qt.AlignTop)
         self.control_panel.setProperty("class", "control_panel")
 
-        # 1. FT Component Selection (New Segmented Control)
+        # 1. FT Component Selection
         ft_group = QGroupBox("FT Component Mode")
         ft_layout = QVBoxLayout(ft_group)
         self.ft_mode_selector = SegmentedControl(["Magnitude / Phase", "Real / Imaginary"])
@@ -140,7 +149,6 @@ class MainWindow(QMainWindow):
         output_group = QGroupBox("Mixed Output")
         output_layout = QVBoxLayout(output_group)
 
-        # --- UI ENHANCEMENT 1: Replace QComboBox with SegmentedControl for Output Selector ---
         self.output_selector = SegmentedControl(["Output 1", "Output 2"])
         output_layout.addWidget(self.output_selector)
 
@@ -152,19 +160,18 @@ class MainWindow(QMainWindow):
         self.output_image_1.setScaledContents(True)
         self.output_image_1.setAlignment(Qt.AlignCenter)
         self.output_image_1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.output_image_1.setMinimumSize(150, 150)  # Stable base size
+        self.output_image_1.setMinimumSize(150, 150)
 
         self.output_image_2.setProperty("class", "output_image_label")
         self.output_image_2.setScaledContents(True)
         self.output_image_2.setAlignment(Qt.AlignCenter)
         self.output_image_2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.output_image_2.setMinimumSize(150, 150)  # Stable base size
+        self.output_image_2.setMinimumSize(150, 150)
 
         # Add images directly to the vertical layout with equal vertical stretch
         output_layout.addWidget(self.output_image_1, 1)
         output_layout.addWidget(self.output_image_2, 1)
 
-        # Give the output group a stretch factor of 1 (which now allocates all remaining space)
         self.control_panel_layout.addWidget(output_group, 1)
 
         # 4. Status and Control
@@ -173,7 +180,6 @@ class MainWindow(QMainWindow):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
 
-        # --- UI ENHANCEMENT 2: Change button text (now saves image) ---
         self.cancel_button = QPushButton("Save Mixed Output")
         self.control_panel_layout.addWidget(self.cancel_button)
 
@@ -181,7 +187,7 @@ class MainWindow(QMainWindow):
         self.quit_button.setProperty("class", "quit_button")
         self.control_panel_layout.addWidget(self.quit_button)
 
-        self.main_layout.addWidget(self.control_panel, 1)  # Give control panel 1/4 of the space
+        self.main_layout.addWidget(self.control_panel, 1)
 
     def connect_signals(self):
         # Connect to the core logic layer
@@ -193,8 +199,11 @@ class MainWindow(QMainWindow):
             label.mousePressEvent = lambda event, idx=i: self.app_logic.mouse_press_event(event, idx)
             label.mouseMoveEvent = lambda event, idx=i: self.app_logic.mouse_move_event(event, idx)
 
-            # Reset Button
+            # Reset Button (for B/C)
             self.reset_buttons[i].clicked.connect(lambda checked, idx=i: self.app_logic.reset_brightness_contrast(idx))
+
+            # Connect Clear Button
+            self.clear_buttons[i].clicked.connect(lambda checked, idx=i: self.app_logic.clear_image(idx))
 
             # Weight Slider
             current_slider = self.weight_sliders[i]
@@ -209,8 +218,6 @@ class MainWindow(QMainWindow):
         # Connect new modern components
         self.ft_mode_selector.selection_changed.connect(self.app_logic.handle_ft_mode_change)
         self.region_mode_selector.selection_changed.connect(self.app_logic.handle_region_mode_change)
-        # Note: output_selector is a SegmentedControl but doesn't need a signal connection here
-        # as its selection state is read directly during save/update operations.
 
         # Region Size Slider
         current_slider = self.region_size_slider
@@ -220,7 +227,5 @@ class MainWindow(QMainWindow):
              )(current_slider)
         )
         self.region_size_slider.sliderReleased.connect(self.app_logic.full_update_cycle)
-
-        # The 'Save Mixed Output' button connection is handled in main.py
 
         self.quit_button.clicked.connect(self.close)
