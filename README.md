@@ -1,4 +1,4 @@
-# Image Fourier Transform Mixer Pro
+# Image Fourier Transform Mixer
 > **Image FT-Mixer** analyzes, visualizes, and manipulates images in the Fourier domain, allowing users to mix up to four images’ Fourier Transform components.
 ![Project Overview](https://github.com/user-attachments/assets/431774f2-e1e2-4d62-b236-d05fdd59bbe0)
 
