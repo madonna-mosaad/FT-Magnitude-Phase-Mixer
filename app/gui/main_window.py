@@ -1,0 +1,257 @@
+from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QComboBox, QPushButton, QProgressBar, QGroupBox, \
+    QButtonGroup, QToolButton, QSizePolicy
+from PyQt5.QtCore import Qt
+from app.gui.ui_components import SegmentedControl
+
+
+class MainWindow(QMainWindow):
+    def __init__(self, app_logic):
+        super().__init__()
+        self.app_logic = app_logic  # Reference to the logic/core layer
+        self.setWindowTitle("FT Image Mixer Pro")
+        self.setGeometry(100, 100, 1400, 800)
+        self.setMinimumSize(1200, 700)
+
+        # Define fixed sizes for the two main components within a viewport
+        # These sizes maintain the ratio (e.g., 300:200) and ensure stability.
+        self.INPUT_LABEL_WIDTH = 300
+        self.FT_LABEL_WIDTH = 200
+        self.VIEWPORT_HEIGHT = 280  # Fixed height for stability
+
+        # Main widget and layout
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.main_layout = QHBoxLayout(self.central_widget)
+
+        self.setup_main_interface()
+        self.setup_control_panel()
+        self.connect_signals()
+
+        # Connect QMainWindow's close event to the cleanup logic
+        self.closeEvent = self.handle_close_event
+
+    def handle_close_event(self, event):
+        """Intercepts the close event to ensure threads are shut down."""
+        self.app_logic.cleanup_on_exit()
+        event.accept()
+
+    def setup_main_interface(self):
+        # 2x2 Grid for Image Viewports
+        self.image_grid_widget = QWidget()
+        self.image_grid = QGridLayout(self.image_grid_widget)
+        self.image_grid.setSpacing(10)
+
+        # Store labels and controls for easy access
+        self.input_labels = []
+        self.ft_labels = []
+        self.weight_sliders = []
+        self.component_selectors = []
+        self.reset_buttons = []
+        self.clear_buttons = []
+
+        for i in range(4):
+            # Viewport Group
+            viewport_group = QGroupBox(f"Viewport {i + 1}")
+            viewport_layout = QVBoxLayout(viewport_group)
+
+            # Input Image (Original) + FT Component (Interactive) in a horizontal split
+            image_h_layout = QHBoxLayout()
+            input_label = QLabel("Click to Load Image")
+            input_label.setProperty("class", "input_image_label")
+            input_label.setScaledContents(True)
+            input_label.setAlignment(Qt.AlignCenter)
+
+            # --- FIXED SIZE IMPLEMENTATION ---
+            input_label.setFixedSize(self.INPUT_LABEL_WIDTH, self.VIEWPORT_HEIGHT)
+            self.input_labels.append(input_label)
+
+            ft_label = QLabel("FT Component View")
+            ft_label.setProperty("class", "ft_component_label")
+            ft_label.setScaledContents(True)
+            ft_label.setAlignment(Qt.AlignCenter)
+
+            # --- FIXED SIZE IMPLEMENTATION ---
+            ft_label.setFixedSize(self.FT_LABEL_WIDTH, self.VIEWPORT_HEIGHT)
+            self.ft_labels.append(ft_label)
+
+            image_h_layout.addWidget(input_label, 3)  # Give input more space
+            image_h_layout.addWidget(ft_label, 2)
+
+            # ----------------------------------------------------
+            # --- ENHANCEMENT: Restructure Controls (Nested V-Layouts) ---
+            # ----------------------------------------------------
+            control_h_layout = QHBoxLayout()
+
+            # --- Left Column: Parameters (Weight and Component) ---
+            param_v_layout = QVBoxLayout()
+            param_v_layout.setSpacing(5)
+
+            # Weight Control (Horizontal layout inside vertical stack)
+            weight_h_layout = QHBoxLayout()
+            weight_slider = QSlider(Qt.Horizontal)
+            weight_slider.setRange(0, 100)
+            weight_slider.setValue(0)
+            self.weight_sliders.append(weight_slider)
+
+            weight_h_layout.addWidget(QLabel("Weight:"))
+            weight_h_layout.addWidget(weight_slider)
+
+            param_v_layout.addLayout(weight_h_layout)
+
+            # Component Selector
+            component_selector = SegmentedControl(["Select Mode"])
+            component_selector.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            self.component_selectors.append(component_selector)
+
+            param_v_layout.addWidget(component_selector)
+
+            # --- Right Column: Actions (Reset B/C and Clear Image) ---
+            action_v_layout = QVBoxLayout()
+            action_v_layout.setSpacing(5)
+            action_v_layout.setAlignment(Qt.AlignTop)
+
+            reset_btn = QToolButton()
+            reset_btn.setText("Reset B/C")
+            reset_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            self.reset_buttons.append(reset_btn)
+            reset_btn.setObjectName("reset_button")
+
+            clear_btn = QToolButton()
+            clear_btn.setText("Clear Image")
+            clear_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            self.clear_buttons.append(clear_btn)
+            clear_btn.setObjectName("clear_button")
+
+            action_v_layout.addWidget(reset_btn)
+            action_v_layout.addWidget(clear_btn)
+
+            # Add the two columns to the main horizontal control layout
+            control_h_layout.addLayout(param_v_layout, 2)  # Give parameters more space
+            control_h_layout.addLayout(action_v_layout, 1)  # Actions take less space
+
+            viewport_layout.addLayout(image_h_layout)
+            viewport_layout.addLayout(control_h_layout)
+            # ----------------------------------------------------
+
+            # Add to the 2x2 grid
+            row = i // 2
+            col = i % 2
+            self.image_grid.addWidget(viewport_group, row, col)
+
+        # Since the individual labels are fixed, we can let the grid widget take up space naturally
+        self.main_layout.addWidget(self.image_grid_widget, 3)
+
+    def setup_control_panel(self):
+        # Dedicated right-side control panel
+        self.control_panel = QWidget()
+        self.control_panel_layout = QVBoxLayout(self.control_panel)
+        self.control_panel_layout.setAlignment(Qt.AlignTop)
+        self.control_panel.setProperty("class", "control_panel")
+
+        # 1. FT Component Selection (Global Mode Selector)
+        ft_group = QGroupBox("FT Component Mode (Global)")
+        ft_layout = QVBoxLayout(ft_group)
+        self.ft_mode_selector = SegmentedControl(["Magnitude / Phase", "Real / Imaginary"])
+        ft_layout.addWidget(self.ft_mode_selector)
+        self.control_panel_layout.addWidget(ft_group)
+
+        # 2. Region Selection
+        region_group = QGroupBox("Region Selection")
+        region_layout = QVBoxLayout(region_group)
+
+        # Segmented control for Inner/Outer/None
+        self.region_mode_selector = SegmentedControl(["Inner (Low Freq)", "Outer (High Freq)", "None"])
+        region_layout.addWidget(self.region_mode_selector)
+
+        region_layout.addWidget(QLabel("Region Size:"))
+        self.region_size_slider = QSlider(Qt.Horizontal)
+        self.region_size_slider.setRange(50, 400)  # Min 50, Max 400
+        self.region_size_slider.setValue(200)
+        region_layout.addWidget(self.region_size_slider)
+
+        self.control_panel_layout.addWidget(region_group)
+
+        # 3. Output Viewports
+        output_group = QGroupBox("Mixed Output")
+        output_layout = QVBoxLayout(output_group)
+
+        self.output_selector = SegmentedControl(["Output 1", "Output 2"])
+        output_layout.addWidget(self.output_selector)
+
+        self.output_image_1 = QLabel("Mixed Image 1")
+        self.output_image_2 = QLabel("Mixed Image 2")
+
+        # Set policies to allow images to expand vertically (two rows) and horizontally
+        self.output_image_1.setProperty("class", "output_image_label")
+        self.output_image_1.setScaledContents(True)
+        self.output_image_1.setAlignment(Qt.AlignCenter)
+        self.output_image_1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.output_image_1.setMinimumSize(150, 150)
+
+        self.output_image_2.setProperty("class", "output_image_label")
+        self.output_image_2.setScaledContents(True)
+        self.output_image_2.setAlignment(Qt.AlignCenter)
+        self.output_image_2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.output_image_2.setMinimumSize(150, 150)
+
+        # Add images directly to the vertical layout with equal vertical stretch
+        output_layout.addWidget(self.output_image_1, 1)
+        output_layout.addWidget(self.output_image_2, 1)
+
+        self.control_panel_layout.addWidget(output_group, 1)
+
+        # 4. Status and Control
+        self.status_label = QLabel("Ready")
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+
+        self.cancel_button = QPushButton("Save Mixed Output")
+        self.control_panel_layout.addWidget(self.cancel_button)
+
+        self.quit_button = QPushButton("Quit Application")
+        self.quit_button.setProperty("class", "quit_button")
+        self.control_panel_layout.addWidget(self.quit_button)
+
+        self.main_layout.addWidget(self.control_panel, 1)
+
+    def connect_signals(self):
+        # Connect to the core logic layer
+        for i, label in enumerate(self.input_labels):
+            # Set up image loading on double click
+            label.mouseDoubleClickEvent = lambda event, idx=i: self.app_logic.load_image(idx)
+            # Set up brightness/contrast drag
+            label.setMouseTracking(True)
+            label.mousePressEvent = lambda event, idx=i: self.app_logic.mouse_press_event(event, idx)
+            label.mouseMoveEvent = lambda event, idx=i: self.app_logic.mouse_move_event(event, idx)
+
+            # Reset Button (for B/C)
+            self.reset_buttons[i].clicked.connect(lambda checked, idx=i: self.app_logic.reset_brightness_contrast(idx))
+
+            # Connect Clear Button
+            self.clear_buttons[i].clicked.connect(lambda checked, idx=i: self.app_logic.clear_image(idx))
+
+            # Weight Slider
+            current_slider = self.weight_sliders[i]
+            self.weight_sliders[i].sliderReleased.connect(
+                (lambda idx_fixed, slider_obj:
+                 lambda: self.app_logic.update_weight(slider_obj.value(), idx_fixed)
+                 )(i, current_slider)
+            )
+            # Component Selector (SegmentedControl)
+            self.component_selectors[i].selection_changed.connect(self.app_logic.handle_component_selection)
+
+        # Connect new modern components
+        self.ft_mode_selector.selection_changed.connect(self.app_logic.handle_ft_mode_change)
+        self.region_mode_selector.selection_changed.connect(self.app_logic.handle_region_mode_change)
+
+        # Region Size Slider
+        current_slider = self.region_size_slider
+        self.region_size_slider.valueChanged.connect(
+            (lambda slider_obj:
+             lambda: self.app_logic.handle_region_size_change(slider_obj.value())
+             )(current_slider)
+        )
+        self.region_size_slider.sliderReleased.connect(self.app_logic.full_update_cycle)
+
+        self.quit_button.clicked.connect(self.close)
