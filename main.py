@@ -2,7 +2,7 @@ import sys
 import os
 import cv2
 import numpy as np
-from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QWidget, QLabel
+from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QWidget, QLabel, QSizePolicy
 from PyQt5.QtCore import QObject, Qt, pyqtSlot
 from PyQt5.QtGui import QPixmap
 from app.gui.main_window import MainWindow
@@ -10,6 +10,7 @@ from app.core.image_processor import ImageProcessor
 from app.core.fft_analyzer import FFTAnalyzer
 from app.core.mixer import Mixer
 from app.workers.mixing_thread import MixingThread, MixingThreadSignals
+from app.gui.ui_components import SegmentedControl  # Import SegmentedControl for dynamic updates
 
 
 class ApplicationLogic(QObject):
@@ -66,7 +67,8 @@ class ApplicationLogic(QObject):
 
         # Input Validation (Robust check)
         can_mix = False
-        component_selections = [combo.currentText() for combo in self.ui.component_combos]
+        # UPDATED: Use get_selection() on the new component selectors
+        component_selections = [selector.get_selection() for selector in self.ui.component_selectors]
 
         # Check if any images are loaded AT ALL
         if not any(img is not None for img in self.raw_images):
@@ -75,7 +77,9 @@ class ApplicationLogic(QObject):
 
         for i in range(4):
             if self.raw_images[i] is not None and self.current_weights[i] > 0.0:
-                if component_selections[i] in ["Select Component", ""]:
+                # Note: SegmentedControl always has a selection, so checking for "Select Component" might not be strictly needed,
+                # but we rely on the component list being valid (set in handle_ft_mode_change)
+                if component_selections[i] in ["Select Mode"]:
                     self.ui.status_label.setText(f"Error: Select a component for Viewport {i + 1}")
                     return
                 can_mix = True
@@ -99,7 +103,8 @@ class ApplicationLogic(QObject):
         """
         # 1. Get current parameters
         processed_images = self.image_processor.process_input_images(self.raw_images)
-        component_selections = [combo.currentText() for combo in self.ui.component_combos]
+        # UPDATED: Use get_selection() on the new component selectors
+        component_selections = [selector.get_selection() for selector in self.ui.component_selectors]
         min_h = self.image_processor.min_height
         min_w = self.image_processor.min_width
 
@@ -201,12 +206,9 @@ class ApplicationLogic(QObject):
                 self.reset_brightness_contrast(index, trigger_update=False)
 
                 # --- FIX: Ensure FT component viewer shows up immediately ---
-                # We need to explicitly set the combo box selection after loading
-                # to trigger the visualization update if it's currently at "Select Component".
-                combo = self.ui.component_combos[index]
-                if combo.currentIndex() == 0 and combo.count() > 1:
-                    combo.setCurrentIndex(1)  # Select the first available component (e.g., Magnitude)
-                # Now, call the full update cycle
+                # This is handled naturally because load_image calls full_update_cycle()
+                # and the global FT mode change (in set_ui) already set the options.
+                # If the image loads, we trigger the full update which visualizes the default component.
                 self.full_update_cycle()
             else:
                 self.ui.status_label.setText("Error: Could not read the image file.")
@@ -224,9 +226,9 @@ class ApplicationLogic(QObject):
 
         # Reset UI controls
         self.ui.weight_sliders[index].setValue(0)
-        combo = self.ui.component_combos[index]
-        if combo.count() > 0:
-            combo.setCurrentIndex(0)  # Select "Select Component"
+
+        # Note: The SegmentedControl will keep its last selection but we can update its displayed options if needed.
+        # Since the options depend only on the global FT mode, we don't need to re-initialize it here.
 
         # Manually clear viewport display and FT component view
         self.ui.input_labels[index].clear()
@@ -293,17 +295,36 @@ class ApplicationLogic(QObject):
 
     @pyqtSlot(str)
     def handle_ft_mode_change(self, selection):
-        """Updates the component mode and populates combo boxes."""
+        """Updates the component mode and populates segmented controls."""
         self.fft_analyzer.set_ft_mode(selection)
         options = self.fft_analyzer.get_component_options()
 
-        for combo in self.ui.component_combos:
-            combo.blockSignals(True)
-            combo.clear()
-            combo.addItem("Select Component")  # Add a default placeholder item
-            combo.addItems(options)
-            combo.setCurrentIndex(1)  # Select the first actual component
-            combo.blockSignals(False)
+        # --- UPDATED: Dynamically rebuild the SegmentedControl buttons ---
+        # Note: We must destroy and recreate the controls to change their options
+        for i, old_selector in enumerate(self.ui.component_selectors):
+            # 1. Store layout and position info
+            parent_layout = old_selector.parentWidget().layout()
+
+            # Find the index of the old selector in the layout
+            selector_index = parent_layout.indexOf(old_selector)
+
+            # 2. Delete the old widget from the layout
+            parent_layout.removeWidget(old_selector)
+            old_selector.deleteLater()
+
+            # 3. Create the new segmented control with updated options
+            new_selector = SegmentedControl(options)
+            new_selector.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+            # 4. Insert the new selector back into the layout at the same position
+            parent_layout.insertWidget(selector_index, new_selector)
+
+            # 5. Update the reference list in the UI instance
+            self.ui.component_selectors[i] = new_selector
+
+            # 6. Reconnect the signal
+            new_selector.selection_changed.connect(self.handle_component_selection)
+        # --- END UPDATED LOGIC ---
 
         self.full_update_cycle()
 
@@ -323,8 +344,10 @@ class ApplicationLogic(QObject):
         else:
             self.ui.status_label.setText("Load an image before changing region size.")
 
-    def handle_component_selection(self):
-        """A component combo box was changed, trigger full update."""
+    @pyqtSlot(str)  # Now receives the text selection from SegmentedControl
+    def handle_component_selection(self, selection):
+        """A component selector was changed, trigger full update."""
+        # The selection argument is the component name (e.g., "FT Magnitude")
         self.full_update_cycle()
 
     # --- Unified Update Logic ---
@@ -355,7 +378,8 @@ class ApplicationLogic(QObject):
         self.update_input_displays(processed_images)
 
         # 3. Compute and Update FT Displays
-        component_selections = [combo.currentText() for combo in self.ui.component_combos]
+        # UPDATED: Use get_selection() on the new component selectors
+        component_selections = [selector.get_selection() for selector in self.ui.component_selectors]
         ft_visuals = self.fft_analyzer.compute_ft_components(processed_images, component_selections)
         self.update_ft_displays(ft_visuals)
 
@@ -363,7 +387,7 @@ class ApplicationLogic(QObject):
         if trigger_mixing:
             self.start_mixing_process()
 
-    # --- Display Update Helpers ---
+    # --- Display Update Helpers (update_input_displays, update_ft_displays, __draw_selector_on_ft_image remain the same) ---
 
     def update_input_displays(self, processed_images):
         """Updates the input image labels."""

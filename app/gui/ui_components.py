@@ -41,7 +41,8 @@ class SegmentedControl(QWidget):
         if self.buttons:
             self.buttons[0].setChecked(True)
             self.current_selection = self.buttons[0].text()
-            self.buttons[0].setStyleSheet("QToolButton[is_checked=\"true\"] { background-color: #007bff; color: white; }")
+            # Note: Styling for checked state is handled in dark_theme.qss using the :checked selector.
+            # We don't need inline styling here unless absolutely necessary.
 
     def _on_button_clicked(self, checked, text, clicked_button):
         if not checked:

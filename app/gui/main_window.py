@@ -45,7 +45,8 @@ class MainWindow(QMainWindow):
         self.input_labels = []
         self.ft_labels = []
         self.weight_sliders = []
-        self.component_combos = []
+        # UPDATED: Replaced component_combos with a list for SegmentedControls
+        self.component_selectors = []
         self.reset_buttons = []
         self.clear_buttons = []
 
@@ -85,10 +86,12 @@ class MainWindow(QMainWindow):
             weight_slider.setValue(0)
             self.weight_sliders.append(weight_slider)
 
-            combo = QComboBox()
-            combo.setEditable(False)
-            combo.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-            self.component_combos.append(combo)
+            # --- ENHANCEMENT: Replace QComboBox with SegmentedControl ---
+            # Initialize with empty options, these will be populated by handle_ft_mode_change
+            component_selector = SegmentedControl(["Select Mode"])
+            component_selector.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            self.component_selectors.append(component_selector)
+            # Note: The QComboBox for component selection is GONE
 
             reset_btn = QToolButton()
             reset_btn.setText("Reset")  # B/C reset is now indicated on this button
@@ -100,7 +103,7 @@ class MainWindow(QMainWindow):
 
             control_h_layout.addWidget(QLabel("Weight:"))
             control_h_layout.addWidget(weight_slider)
-            control_h_layout.addWidget(combo)
+            control_h_layout.addWidget(component_selector)  # Add the new selector
             control_h_layout.addWidget(reset_btn)
             control_h_layout.addWidget(clear_btn)  # New Clear button
 
@@ -122,8 +125,8 @@ class MainWindow(QMainWindow):
         self.control_panel_layout.setAlignment(Qt.AlignTop)
         self.control_panel.setProperty("class", "control_panel")
 
-        # 1. FT Component Selection
-        ft_group = QGroupBox("FT Component Mode")
+        # 1. FT Component Selection (Global Mode Selector)
+        ft_group = QGroupBox("FT Component Mode (Global)")
         ft_layout = QVBoxLayout(ft_group)
         self.ft_mode_selector = SegmentedControl(["Magnitude / Phase", "Real / Imaginary"])
         ft_layout.addWidget(self.ft_mode_selector)
@@ -212,8 +215,8 @@ class MainWindow(QMainWindow):
                  lambda: self.app_logic.update_weight(slider_obj.value(), idx_fixed)
                  )(i, current_slider)
             )
-            # Component Combo
-            self.component_combos[i].currentIndexChanged.connect(self.app_logic.handle_component_selection)
+            # Component Selector (SegmentedControl)
+            self.component_selectors[i].selection_changed.connect(self.app_logic.handle_component_selection)
 
         # Connect new modern components
         self.ft_mode_selector.selection_changed.connect(self.app_logic.handle_ft_mode_change)
