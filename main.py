@@ -36,7 +36,8 @@ class ApplicationLogic(QObject):
     def set_ui(self, ui_instance):
         """Initializes UI references and default state."""
         self.ui = ui_instance
-        self.mixer.set_output_labels(self.ui.output_image_1, self.ui.output_image_2, self.ui.output_selector)
+        # EDITED: Removed output selector from call as it's no longer tracked in Mixer
+        self.mixer.set_output_labels(self.ui.output_image_1, self.ui.output_image_2)
 
         # Initial component setup based on default SegmentedControl selection
         if hasattr(self.ui.ft_mode_selector, 'get_selection'):
@@ -45,15 +46,15 @@ class ApplicationLogic(QObject):
         if hasattr(self.ui.region_mode_selector, 'get_selection'):
             self.mixer.set_region_mode(self.ui.region_mode_selector.get_selection())
 
+        # --- UI ENHANCEMENT: Connect the new 'Save Mixed Output' button ---
+        self.ui.cancel_button.clicked.connect(self.save_mixed_image)
+
     @pyqtSlot()
     def cleanup_on_exit(self):
-        """Ensures the worker thread is terminated when the application closes.
-           Removed .join() for non-blocking cleanup."""
+        """Ensures the worker thread is terminated when the application closes."""
         if self.worker_thread and self.worker_thread.is_alive():
             print("Cleaning up active worker thread...")
             self.worker_thread.cancel()
-            # We rely on the thread exiting on its own after cancel() is called.
-            # No blocking join() here.
 
     # --- Worker Thread Methods ---
 
@@ -94,7 +95,6 @@ class ApplicationLogic(QObject):
     def execute_mixing_core(self):
         """
         [Called by the worker thread] Executes the heavy-lifting FFT and mixing logic.
-        Since this runs in a thread, any unhandled error here must be caught by the thread's run() method.
         """
         # 1. Get current parameters
         processed_images = self.image_processor.process_input_images(self.raw_images)
@@ -119,7 +119,8 @@ class ApplicationLogic(QObject):
         qt_image = self.image_processor.convert_cv_to_qt(mixed_image)
         if qt_image:
             pixmap = QPixmap.fromImage(qt_image)
-            target_label = self.ui.output_image_1 if self.ui.output_selector.currentText() == "Output 1" else self.ui.output_image_2
+            # EDITED: Use SegmentedControl.get_selection() instead of QComboBox.currentText()
+            target_label = self.ui.output_image_1 if self.ui.output_selector.get_selection() == "Output 1" else self.ui.output_image_2
             target_label.setPixmap(pixmap.scaled(target_label.size(), Qt.KeepAspectRatio))
             self.ui.status_label.setText("Mixing Complete")
 
@@ -141,7 +142,36 @@ class ApplicationLogic(QObject):
         self.ui.status_label.setText("Mixing Canceled")
         self.ui.progress_bar.setValue(0)
 
+    # --- UI ENHANCEMENT: New Method to Save the Output Image ---
+    @pyqtSlot()
+    def save_mixed_image(self):
+        """Saves the image from the currently selected output viewport."""
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self.ui, "Save Mixed Image", "",
+                                                   "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg);;All Files (*)", options=options)
+
+        if file_name:
+            # Determine which output label to save from using SegmentedControl.get_selection()
+            selected_output = self.ui.output_selector.get_selection()
+            if selected_output == "Output 1":
+                target_label = self.ui.output_image_1
+            else:  # Must be "Output 2"
+                target_label = self.ui.output_image_2
+
+            # Check if the label has a pixmap (i.e., an image is mixed)
+            pixmap = target_label.pixmap()
+            if pixmap and not pixmap.isNull():
+                # Save the pixmap content. QPixmap.save() handles the file format based on extension.
+                if pixmap.save(file_name):
+                    self.ui.status_label.setText(f"Output saved to: {os.path.basename(file_name)}")
+                else:
+                    self.ui.status_label.setText("Error: Could not save the image file.")
+            else:
+                self.ui.status_label.setText("Error: No mixed image available to save.")
+
     def cancel_mixing(self):
+        # This function is now primarily used for implicitly canceling a running thread
+        # when a new mix operation starts via full_update_cycle.
         if self.worker_thread and self.worker_thread.is_alive():
             self.worker_thread.cancel()
         else:
@@ -268,9 +298,6 @@ class ApplicationLogic(QObject):
         processed_images = self.image_processor.process_input_images(self.raw_images)
 
         # --- FIX: Ensure the selector region is centered after image dimensions are set ---
-        # The region starts at [0, 0]. Once min_width/height are available (after processing),
-        # we check if the region is still at the un-centered default [0, 0].
-        # If it is, we force a centering call using the current slider value.
         if self.image_processor.min_width is not None and self.ui is not None:
             region_x, region_y, _, _ = self.fft_analyzer.selector_region
             # The initial x/y in FFTAnalyzer is 0. If it hasn't changed from 0, it means
@@ -339,7 +366,7 @@ class ApplicationLogic(QObject):
         # Create overlay
         overlay = ft_image_copy.copy()
         alpha = 0.4
-        # FIX: Changed selector color from Yellow (255, 255, 0) to Red (0, 0, 255) for sharp contrast
+        # Changed selector color from Yellow (255, 255, 0) to Red (0, 0, 255) for sharp contrast
         color = (0, 0, 255)  # BGR color for Red
 
         # Draw a solid rectangle on the overlay

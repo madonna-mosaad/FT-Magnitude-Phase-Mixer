@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QComboBox, QPushButton, QProgressBar, QGroupBox, \
-    QButtonGroup, QToolButton, QSizePolicy  # QSizePolicy imported for layout control
+    QButtonGroup, QToolButton, QSizePolicy
 from PyQt5.QtCore import Qt
-from app.gui.ui_components import SegmentedControl  # Import the new component
+from app.gui.ui_components import SegmentedControl
 
 
 class MainWindow(QMainWindow):
@@ -39,9 +39,9 @@ class MainWindow(QMainWindow):
         self.input_labels = []
         self.ft_labels = []
         self.weight_sliders = []
+        # NOTE: Keeping QComboBox for component selection as options are dynamic
         self.component_combos = []
         self.reset_buttons = []
-        # NEW: For Brightness/Contrast feedback
         self.adjustment_status_labels = []
 
         for i in range(4):
@@ -55,7 +55,6 @@ class MainWindow(QMainWindow):
             input_label.setProperty("class", "input_image_label")
             input_label.setScaledContents(True)
             input_label.setAlignment(Qt.AlignCenter)
-            # FIX 1: Set a minimum size to prevent the label from collapsing/jumping
             input_label.setMinimumSize(250, 250)
             self.input_labels.append(input_label)
 
@@ -63,7 +62,6 @@ class MainWindow(QMainWindow):
             ft_label.setProperty("class", "ft_component_label")
             ft_label.setScaledContents(True)
             ft_label.setAlignment(Qt.AlignCenter)
-            # FIX 1: Set a minimum size (proportional to input)
             ft_label.setMinimumSize(180, 250)
             self.ft_labels.append(ft_label)
 
@@ -75,7 +73,6 @@ class MainWindow(QMainWindow):
 
             # B/C Feedback Label
             adj_label = QLabel("B: 0 | C: 1.00")
-            # --- THEME CHANGE: Updated color to Teal accent for B/C status label ---
             adj_label.setStyleSheet("font-size: 8pt; color: #00FFFF;")
             self.adjustment_status_labels.append(adj_label)
 
@@ -86,8 +83,6 @@ class MainWindow(QMainWindow):
 
             combo = QComboBox()
             combo.setEditable(False)
-            # FIX 2: Set the combo box's size policy to fixed horizontally.
-            # This prevents it from changing the layout size when its content changes (e.g., toggling FT mode).
             combo.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             self.component_combos.append(combo)
 
@@ -129,7 +124,7 @@ class MainWindow(QMainWindow):
         region_group = QGroupBox("Region Selection")
         region_layout = QVBoxLayout(region_group)
 
-        # Segmented control for Inner/Outer/None (replacing radio buttons)
+        # Segmented control for Inner/Outer/None
         self.region_mode_selector = SegmentedControl(["Inner (Low Freq)", "Outer (High Freq)", "None"])
         region_layout.addWidget(self.region_mode_selector)
 
@@ -145,16 +140,14 @@ class MainWindow(QMainWindow):
         output_group = QGroupBox("Mixed Output")
         output_layout = QVBoxLayout(output_group)
 
-        self.output_selector = QComboBox()
-        self.output_selector.addItems(["Output 1", "Output 2"])
+        # --- UI ENHANCEMENT 1: Replace QComboBox with SegmentedControl for Output Selector ---
+        self.output_selector = SegmentedControl(["Output 1", "Output 2"])
         output_layout.addWidget(self.output_selector)
 
-        # --- FIX: Rework output images for stability and two rows (vertical layout) ---
         self.output_image_1 = QLabel("Mixed Image 1")
         self.output_image_2 = QLabel("Mixed Image 2")
 
         # Set policies to allow images to expand vertically (two rows) and horizontally
-        # Use QSizePolicy.Expanding for both to fill the available space evenly.
         self.output_image_1.setProperty("class", "output_image_label")
         self.output_image_1.setScaledContents(True)
         self.output_image_1.setAlignment(Qt.AlignCenter)
@@ -174,17 +167,14 @@ class MainWindow(QMainWindow):
         # Give the output group a stretch factor of 1 (which now allocates all remaining space)
         self.control_panel_layout.addWidget(output_group, 1)
 
-        # 4. Status and Control (Remove Status Group and place buttons directly)
-
-        # NOTE: Status widgets are created as members, but not added to the layout
-        # to free up space while keeping the application logic functional.
+        # 4. Status and Control
         self.status_label = QLabel("Ready")
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
 
-        # Place Cancel Button directly in the control panel layout
-        self.cancel_button = QPushButton("Cancel Mixing")
+        # --- UI ENHANCEMENT 2: Change button text (now saves image) ---
+        self.cancel_button = QPushButton("Save Mixed Output")
         self.control_panel_layout.addWidget(self.cancel_button)
 
         self.quit_button = QPushButton("Quit Application")
@@ -198,29 +188,31 @@ class MainWindow(QMainWindow):
         for i, label in enumerate(self.input_labels):
             # Set up image loading on double click
             label.mouseDoubleClickEvent = lambda event, idx=i: self.app_logic.load_image(idx)
-            # Set up brightness/contrast drag (requires binding to mouse events in main.py)
+            # Set up brightness/contrast drag
             label.setMouseTracking(True)
             label.mousePressEvent = lambda event, idx=i: self.app_logic.mouse_press_event(event, idx)
             label.mouseMoveEvent = lambda event, idx=i: self.app_logic.mouse_move_event(event, idx)
 
-            # Reset Button: Use lambda only to capture index, since the clicked signal sends a bool (checked)
+            # Reset Button
             self.reset_buttons[i].clicked.connect(lambda checked, idx=i: self.app_logic.reset_brightness_contrast(idx))
 
-            # FIX for TypeError: sliderReleased emits NO arguments.
-            # We capture the index and the slider object, then call slider_obj.value() in the inner lambda.
+            # Weight Slider
             current_slider = self.weight_sliders[i]
             self.weight_sliders[i].sliderReleased.connect(
                 (lambda idx_fixed, slider_obj:
                  lambda: self.app_logic.update_weight(slider_obj.value(), idx_fixed)
                  )(i, current_slider)
             )
+            # Component Combo
             self.component_combos[i].currentIndexChanged.connect(self.app_logic.handle_component_selection)
 
         # Connect new modern components
         self.ft_mode_selector.selection_changed.connect(self.app_logic.handle_ft_mode_change)
         self.region_mode_selector.selection_changed.connect(self.app_logic.handle_region_mode_change)
+        # Note: output_selector is a SegmentedControl but doesn't need a signal connection here
+        # as its selection state is read directly during save/update operations.
 
-        # Region Size Slider: FIX for TypeError (sliderReleased emits no arguments)
+        # Region Size Slider
         current_slider = self.region_size_slider
         self.region_size_slider.valueChanged.connect(
             (lambda slider_obj:
@@ -229,6 +221,6 @@ class MainWindow(QMainWindow):
         )
         self.region_size_slider.sliderReleased.connect(self.app_logic.full_update_cycle)
 
-        # Connect thread control
-        self.cancel_button.clicked.connect(self.app_logic.cancel_mixing)
+        # The 'Save Mixed Output' button connection is handled in main.py
+
         self.quit_button.clicked.connect(self.close)

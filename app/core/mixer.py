@@ -12,7 +12,7 @@ class Mixer:
         self._region_mode = "None"
         self._output_label_1 = None
         self._output_label_2 = None
-        self._output_selector = None
+        # Removed _output_selector as it's no longer necessary
 
     # --- Properties ---
     @property
@@ -28,11 +28,13 @@ class Mixer:
         else:
             self._region_mode = "None"
 
-    def set_output_labels(self, label1, label2, selector):
-        """Set references to UI elements to handle display updates."""
+    def set_output_labels(self, label1, label2):
+        """
+        Set references to UI output image elements.
+        The selector reference is now handled solely in ApplicationLogic.
+        """
         self._output_label_1 = label1
         self._output_label_2 = label2
-        self._output_selector = selector
 
     # --- Core Methods ---
 
