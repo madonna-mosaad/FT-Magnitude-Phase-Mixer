@@ -230,9 +230,6 @@ class ApplicationLogic(QObject):
         self.ui.ft_labels[index].clear()
         self.ui.ft_labels[index].setText("FT Component View")
 
-        # Reset B/C button text
-        self.ui.reset_buttons[index].setText("Reset B/C")
-
         # Clear output if all images are now cleared
         if not any(img is not None for img in self.raw_images):
             self.clear_mixed_output()
@@ -257,9 +254,6 @@ class ApplicationLogic(QObject):
     def reset_brightness_contrast(self, index, trigger_update=True):
         """Resets B/C for one image."""
         self.image_processor.reset_adjustments(index)
-
-        # Reset B/C button text to fixed value after reset
-        self.ui.reset_buttons[index].setText("Reset B/C")
 
         if trigger_update:
             self.full_update_cycle(trigger_mixing=False)
@@ -392,17 +386,10 @@ class ApplicationLogic(QObject):
         for i, image in enumerate(processed_images):
             label = self.ui.input_labels[i]
 
-            # --- CLEANUP: Remove dynamic B/C text from the Reset button ---
-            b = self.image_processor._brightness[i]
-            c = self.image_processor._contrast[i]
-            # Show B/C stats in the status bar if needed, but not on the button itself.
-            # Keeping the dynamic text here to see the effect of mouse drag is useful for debugging/user feedback
-            # but setting it back to static "Reset B/C" if the user loads an image.
-
             # Since the user requested it removed, we use the static text unless the image is loaded/being manipulated
             if image is not None:
                 # When image is loaded/being dragged, show current stats for feedback
-                self.ui.reset_buttons[i].setText(f"Reset (B:{b:.0f} | C:{c:.2f})")
+                # self.ui.reset_buttons[i].setText(f"Reset (B:{b:.0f} | C:{c:.2f})")
                 qt_image = self.image_processor.convert_cv_to_qt(image)
                 if qt_image:
                     pixmap = QPixmap.fromImage(qt_image)
@@ -410,7 +397,7 @@ class ApplicationLogic(QObject):
             else:
                 label.clear()
                 label.setText("Click to Load Image")
-                self.ui.reset_buttons[i].setText("Reset B/C")  # Static text when empty or reset
+                # self.ui.reset_buttons[i].setText("Reset")  # Static text when empty or reset
 
     def update_ft_displays(self, ft_visuals):
         """Updates the FT component labels, including the region selector overlay."""

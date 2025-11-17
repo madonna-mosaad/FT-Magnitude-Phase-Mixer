@@ -65,9 +65,9 @@ QPushButton:pressed {
 /* ------------------ Reset and Clear Buttons (Minimal Padding) ------------------ */
 QToolButton#reset_button, QToolButton#clear_button {
     background-color: #455A64;          /* Muted steel blue for Reset / Clear base */
-    border: 1px solid #555555;
+    border: none;
     border-radius: 6px;
-    padding: 2px 6px;                    /* Minimal padding to prevent overlap */
+    padding: 5px 10px;                    /* Minimal padding to prevent overlap */
     font-weight: 500;
     color: #E0E0E0;
 }
