@@ -1,11 +1,6 @@
 import threading
 import time
-import logging
 from PyQt5.QtCore import QObject, pyqtSignal
-
-# Configure logging for the worker
-logging.basicConfig(filemode="a", filename="mixer_log.log",
-                    format="(%(asctime)s) | %(name)s| %(levelname)s | => %(message)s", level=logging.INFO)
 
 
 # A QObject to safely emit signals from the worker thread back to the main thread
@@ -33,7 +28,6 @@ class MixingThread(threading.Thread):
             for i in range(self.steps):
                 if self._is_canceled:
                     self.signals.canceled.emit()
-                    logging.info('Mixing thread canceled.')
                     return
 
                 time.sleep(0.1)  # Simulate work time for one step
@@ -50,11 +44,9 @@ class MixingThread(threading.Thread):
                 self.signals.progress.emit(100)
 
                 self.signals.finished.emit(result_image)
-                logging.info('Mixing thread completed successfully.')
 
         except Exception as e:
             self.signals.error.emit(f"Error in mixing thread: {e}")
-            logging.error(f'Error in mixing thread: {e}')
             self.signals.progress.emit(0)  # Reset progress on error
 
         # Ensure the thread's run method finishes
