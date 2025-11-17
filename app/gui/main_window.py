@@ -45,7 +45,6 @@ class MainWindow(QMainWindow):
         self.input_labels = []
         self.ft_labels = []
         self.weight_sliders = []
-        # UPDATED: Replaced component_combos with a list for SegmentedControls
         self.component_selectors = []
         self.reset_buttons = []
         self.clear_buttons = []
@@ -78,37 +77,59 @@ class MainWindow(QMainWindow):
             image_h_layout.addWidget(input_label, 3)  # Give input more space
             image_h_layout.addWidget(ft_label, 2)
 
-            # Controls beneath the images
+            # ----------------------------------------------------
+            # --- ENHANCEMENT: Restructure Controls (Nested V-Layouts) ---
+            # ----------------------------------------------------
             control_h_layout = QHBoxLayout()
 
+            # --- Left Column: Parameters (Weight and Component) ---
+            param_v_layout = QVBoxLayout()
+            param_v_layout.setSpacing(5)
+
+            # Weight Control (Horizontal layout inside vertical stack)
+            weight_h_layout = QHBoxLayout()
             weight_slider = QSlider(Qt.Horizontal)
             weight_slider.setRange(0, 100)
             weight_slider.setValue(0)
             self.weight_sliders.append(weight_slider)
 
-            # --- ENHANCEMENT: Replace QComboBox with SegmentedControl ---
-            # Initialize with empty options, these will be populated by handle_ft_mode_change
+            weight_h_layout.addWidget(QLabel("Weight:"))
+            weight_h_layout.addWidget(weight_slider)
+
+            param_v_layout.addLayout(weight_h_layout)
+
+            # Component Selector
             component_selector = SegmentedControl(["Select Mode"])
-            component_selector.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            component_selector.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             self.component_selectors.append(component_selector)
-            # Note: The QComboBox for component selection is GONE
+
+            param_v_layout.addWidget(component_selector)
+
+            # --- Right Column: Actions (Reset B/C and Clear Image) ---
+            action_v_layout = QVBoxLayout()
+            action_v_layout.setSpacing(5)
+            action_v_layout.setAlignment(Qt.AlignTop)
 
             reset_btn = QToolButton()
-            reset_btn.setText("Reset")  # B/C reset is now indicated on this button
+            reset_btn.setText("Reset B/C")
+            reset_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             self.reset_buttons.append(reset_btn)
 
             clear_btn = QToolButton()
-            clear_btn.setText("Clear")
+            clear_btn.setText("Clear Image")
+            clear_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             self.clear_buttons.append(clear_btn)
 
-            control_h_layout.addWidget(QLabel("Weight:"))
-            control_h_layout.addWidget(weight_slider)
-            control_h_layout.addWidget(component_selector)  # Add the new selector
-            control_h_layout.addWidget(reset_btn)
-            control_h_layout.addWidget(clear_btn)  # New Clear button
+            action_v_layout.addWidget(reset_btn)
+            action_v_layout.addWidget(clear_btn)
+
+            # Add the two columns to the main horizontal control layout
+            control_h_layout.addLayout(param_v_layout, 2)  # Give parameters more space
+            control_h_layout.addLayout(action_v_layout, 1)  # Actions take less space
 
             viewport_layout.addLayout(image_h_layout)
             viewport_layout.addLayout(control_h_layout)
+            # ----------------------------------------------------
 
             # Add to the 2x2 grid
             row = i // 2
