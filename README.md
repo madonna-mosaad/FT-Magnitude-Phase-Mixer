@@ -55,24 +55,22 @@ Below are illustrative screenshots of the application showcasing its key feature
 
 1. **Main Interface with Four Image Viewports**
    
-   ![Screenshot 2025-01-07 005022](https://github.com/user-attachments/assets/ad4227fe-94de-49d4-b67d-933e2159e7ef)
+   ![UI Interface](https://github.com/user-attachments/assets/63501866-b537-4a49-9997-77fe253a7de6)
 
 2. **Fourier Transform Component Selection**
    
-   ![Screenshot 2025-01-06 230255](https://github.com/user-attachments/assets/6dab3dc0-1eb7-4817-b60c-b965105dfcef)
+   ![FT Componenet Selection](https://github.com/user-attachments/assets/16980abe-bdcb-4e87-8d42-0061cd346183)
 
 3. **Brightness/Contrast Adjustment**
    
-   ![Screenshot 2025-01-07 000339](https://github.com/user-attachments/assets/b65d1fe5-7ff8-4648-ac90-9015cc1300a7)
+   ![Brightness & Contrast](https://github.com/user-attachments/assets/b7d3ea2a-4185-4c65-977d-9a76b23bd9a3)
    
 4. **Region Selection for FT Components**
    a-Inner Region
-   
-   ![Screenshot 2025-01-06 230117](https://github.com/user-attachments/assets/5469e2ae-6caa-4e11-882c-b36fb72628ae)
-   b-Outer Region
-   
-   ![Screenshot 2025-01-06 230033](https://github.com/user-attachments/assets/00268d84-ff44-4d3e-b4be-91b603477dd1)
+   ![Inner Region](https://github.com/user-attachments/assets/8c17a8a3-d8d8-435d-87ad-c41ed7559ba5)
 
+   b-Outer Region
+   ![Outer Region](https://github.com/user-attachments/assets/9f1d72fd-7241-449d-807b-0391c13a0e9a)
 
 ---
 
