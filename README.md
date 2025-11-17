@@ -3,10 +3,12 @@
 ### **Overview**
 The Images Viewer is a Python-based desktop application designed for viewing and manipulating four grayscale images simultaneously. Leveraging advanced image processing techniques, the application provides users with intuitive controls to convert colored images to grayscale, unify image sizes, and explore Fourier Transform (FT) components. The application is tailored for both casual users and professionals who require a sophisticated tool for image analysis and processing.
 
+![Project Overview](https://github.com/user-attachments/assets/431774f2-e1e2-4d62-b236-d05fdd59bbe0)
+
 ---
 ### **Video Demo**
-   https://github.com/user-attachments/assets/bcd43fdb-c188-4896-ae0c-0ced645d7ce7
-   
+   https://github.com/user-attachments/assets/a3f56a98-2a61-4528-80b4-d45b0698c641
+
 ---
 
 ### **Features**
